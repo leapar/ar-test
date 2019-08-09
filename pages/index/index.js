@@ -197,8 +197,8 @@ Page({
      
      
       renderer.render(scene, camera)
-      camera2.lookAt(scene2.position);
-      renderer.render(scene2, camera2)
+      //camera2.lookAt(scene2.position);
+      //renderer.render(scene2, camera2)
       
       
     }
