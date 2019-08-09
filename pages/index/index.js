@@ -1,7 +1,7 @@
 import * as THREE from '../../libs/vendors/three'
 import * as THREEAR from '../../libs/vendors/THREEAR'
 
-let camera, scene, renderer, canvas, camera2, matFrame, meshFrame
+let camera, scene, renderer, canvas, camera2, matFrame, meshFrame, renderer2, scene2
 let id, torus, markerGroup
 let frame, controller, lastTime = 0
 let inited = false
@@ -9,7 +9,7 @@ let w, h
 let frameSliceIndex
 
 const app = getApp()
-const RATIO = 4/3
+const RATIO = 4 / 3
 
 Page({
 
@@ -17,7 +17,7 @@ Page({
     canvasStyle: '',
     cameraStyle: ''
   },
-  
+
   initStyles() {
     const info = wx.getSystemInfoSync()
     w = info.windowWidth
@@ -60,35 +60,45 @@ Page({
     const vw = frame.width
     const vh = vw / RATIO | 0
 
-   /* renderer = new THREE.WebGLRenderer({
-      alpha: true,
-      canvas: canvas,
-      antialias: false
-    })*/
+    /* renderer = new THREE.WebGLRenderer({
+       alpha: true,
+       canvas: canvas,
+       antialias: false
+     })*/
 
     renderer = new THREE.WebGLRenderer({
       canvas: canvas,
       antialias: false,
       alpha: true
     });
+
+
+
     console.log(renderer);
 
-   // renderer.setSize(w, h)
+    // renderer.setSize(w, h)
 
     scene = new THREE.Scene()
+    //scene.background = "0xff0000"
     camera = new THREE.Camera()
     scene.add(camera)
 
     let frustumSize = 2;
     var aspect = canvas.width / canvas.height;
 
-    camera2 = new THREE.OrthographicCamera(frustumSize * aspect / - 2, frustumSize * aspect / 2, frustumSize / 2, frustumSize / - 2, 0.001, 10000);
-    camera2.position.z = 0;
-    scene.add(camera2)
-    
 
-     matFrame = new THREE.MeshBasicMaterial({
-      
+    /*camera2 = new THREE.OrthographicCamera(-2, 2, 2, -2, 1, 10);
+    camera2.position.set(0, 0, 1);
+    */
+
+    camera2 = new THREE.PerspectiveCamera(45, canvas.width / canvas.height, 1, 10000)
+
+    camera2.position.set(0, 0, 1);
+    scene2 = new THREE.Scene()
+    renderer.autoClear = false; 
+
+    matFrame = new THREE.MeshBasicMaterial({
+
       transparent: false,
       side: THREE.DoubleSide,
 
@@ -96,23 +106,22 @@ Page({
       side: THREE.DoubleSide*/
     });
     var plane = new THREE.PlaneGeometry(1, 1, 1, 1);
-     meshFrame = new THREE.Mesh(plane, matFrame);
+    meshFrame = new THREE.Mesh(plane, matFrame);
     //  meshFrame.scale.y = meshFrame.scale.x = meshFrame.scale.z = 0.5;
-    //meshFrame.visible = false;
-  
-    meshFrame.position.z = -5
-    scene.add(meshFrame);
+   // meshFrame.visible = false;
+ 
+    scene2.add(meshFrame);
 
     markerGroup = new THREE.Group()
     scene.add(markerGroup)
 
-    const source = new THREEAR.Source({ 
-      renderer, 
+    const source = new THREEAR.Source({
+      renderer,
       camera
     })
 
-    THREEAR.initialize({ 
-      source, 
+    THREEAR.initialize({
+      source,
       canvasWidth: vw,
       canvasHeight: vh
     }).then((_controller) => {
@@ -122,7 +131,7 @@ Page({
     })
 
     frameSliceIndex = vw * (frame.height - vh) * 4
-    
+
   },
 
   initialize(controller) {
@@ -139,12 +148,12 @@ Page({
     markerGroup.add(torus)
     const cubeGeo = new THREE.CubeGeometry(1, 1, 1)
     const cubeMat = new THREE.MeshNormalMaterial({
-      transparent : true,
+      transparent: true,
       opacity: 0.5,
       side: THREE.DoubleSide
     })
     const cube = new THREE.Mesh(cubeGeo, cubeMat)
-    cube.position.y	= cubeGeo.parameters.height / 2
+    cube.position.y = cubeGeo.parameters.height / 2
     markerGroup.add(cube)
 
     const patternMarker = new THREEAR.PatternMarker({
@@ -159,31 +168,45 @@ Page({
       lastTime = lastTime || now - 1000 / 60
       const delta = Math.min(200, now - lastTime)
       lastTime = now
+
+      let t1 = Date.now();
       let rawData = new Uint8Array(frame.data)
       rawData = this.sliceData(rawData)
       controller.update(rawData)
+      let t2 =   Date.now();
+
+     // console.log("time:",t2-t1);
+
+
+
       torus.rotation.y += 0.1 * Math.PI
       torus.rotation.z += 0.1 * Math.PI
 
       if (!matFrame.map) {
-        matFrame.map = new THREE.DataTexture();
+        var data = new Uint8Array(frame.data);
+        matFrame.map = new THREE.DataTexture(data, frame.width, frame.height, THREE.RGBAFormat);
         matFrame.map.flipY = true;
         matFrame.needsUpdate = true;
         meshFrame.scale.x = frame.width / frame.height
       }
-      matFrame.map.image = frame;
+      matFrame.map.image.data = new Uint8Array(frame.data);
       matFrame.map.needsUpdate = true;
 
-
+      renderer.clear();
       
+     
+     
       renderer.render(scene, camera)
+      camera2.lookAt(scene2.position);
+      renderer.render(scene2, camera2)
+      
+      
     }
 
+
+
     
 
-    camera2.lookAt(scene.position);
-    renderer.render(scene, camera2)
-    
     id = canvas.requestAnimationFrame(this.render.bind(this))
   },
 
@@ -195,7 +218,7 @@ Page({
     const query = wx.createSelectorQuery()
     query.select('#webgl').node().exec((res) => {
       canvas = res[0].node
-     // this.initStyles()
+      // this.initStyles()
       this.initCamera()
     })
   },
