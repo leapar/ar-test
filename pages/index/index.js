@@ -1,7 +1,7 @@
 import * as THREE from '../../libs/vendors/three'
 import * as THREEAR from '../../libs/vendors/THREEAR'
 
-let camera, scene, renderer, canvas, camera2, matFrame, meshFrame, renderer2, scene2
+let camera, scene, renderer, canvas, matFrame, meshFrame
 let id, torus, markerGroup
 let frame, controller, lastTime = 0
 let inited = false
@@ -38,6 +38,9 @@ Page({
         this.initScene()
         inited = true
       }
+
+    
+      this.render(_frame);
     })
     listener.start()
   },
@@ -56,15 +59,8 @@ Page({
   },
 
   initScene() {
-
     const vw = frame.width
-    const vh = vw / RATIO | 0
-
-    /* renderer = new THREE.WebGLRenderer({
-       alpha: true,
-       canvas: canvas,
-       antialias: false
-     })*/
+    const vh = frame.height
 
     renderer = new THREE.WebGLRenderer({
       canvas: canvas,
@@ -72,45 +68,19 @@ Page({
       alpha: true
     });
 
-
-
-    console.log(renderer);
-
-    // renderer.setSize(w, h)
-
     scene = new THREE.Scene()
-    //scene.background = "0xff0000"
     camera = new THREE.Camera()
     scene.add(camera)
 
-    let frustumSize = 2;
-    var aspect = canvas.width / canvas.height;
-
-
-    /*camera2 = new THREE.OrthographicCamera(-2, 2, 2, -2, 1, 10);
-    camera2.position.set(0, 0, 1);
-    */
-
-    camera2 = new THREE.PerspectiveCamera(45, canvas.width / canvas.height, 1, 10000)
-
-    camera2.position.set(0, 0, 1);
-    scene2 = new THREE.Scene()
-    renderer.autoClear = false; 
-
     matFrame = new THREE.MeshBasicMaterial({
-
-      transparent: false,
+      transparent: true,
       side: THREE.DoubleSide,
-
-      /*map: this.frameTexture,
-      side: THREE.DoubleSide*/
     });
     var plane = new THREE.PlaneGeometry(1, 1, 1, 1);
     meshFrame = new THREE.Mesh(plane, matFrame);
-    //  meshFrame.scale.y = meshFrame.scale.x = meshFrame.scale.z = 0.5;
-   // meshFrame.visible = false;
- 
-    scene2.add(meshFrame);
+    meshFrame.scale.y = meshFrame.scale.x = 11 //meshFrame.scale.z = 0.5;
+    meshFrame.position.z = -10;
+    camera.add(meshFrame);
 
     markerGroup = new THREE.Group()
     scene.add(markerGroup)
@@ -127,11 +97,11 @@ Page({
     }).then((_controller) => {
       controller = _controller
       this.initialize(_controller)
-      this.render()
+     // this.render()
+     this.initOver = true;
     })
 
     frameSliceIndex = vw * (frame.height - vh) * 4
-
   },
 
   initialize(controller) {
@@ -139,11 +109,6 @@ Page({
     const torusMat = new THREE.MeshNormalMaterial()
     torus = new THREE.Mesh(torusGeo, torusMat)
     torus.position.y = 0.5
-
-    /*
-    const axesHelper = new THREE.AxesHelper(5)
-    markerGroup.add(axesHelper)
-    */
 
     markerGroup.add(torus)
     const cubeGeo = new THREE.CubeGeometry(1, 1, 1)
@@ -163,51 +128,33 @@ Page({
     controller.trackMarker(patternMarker)
   },
 
-  render(now) {
+  render(frame) {
     if (frame) {
-      lastTime = lastTime || now - 1000 / 60
-      const delta = Math.min(200, now - lastTime)
-      lastTime = now
 
-      let t1 = Date.now();
-      let rawData = new Uint8Array(frame.data)
-      rawData = this.sliceData(rawData)
-      controller.update(rawData)
-      let t2 =   Date.now();
-
-     // console.log("time:",t2-t1);
+      if (controller) {
+        let rawData = new Uint8Array(frame.data)
+        rawData = this.sliceData(rawData)
+        controller.update(rawData)
+        torus.rotation.y += 0.1 * Math.PI
+        torus.rotation.z += 0.1 * Math.PI
 
 
-
-      torus.rotation.y += 0.1 * Math.PI
-      torus.rotation.z += 0.1 * Math.PI
-
-      if (!matFrame.map) {
-        var data = new Uint8Array(frame.data);
-        matFrame.map = new THREE.DataTexture(data, frame.width, frame.height, THREE.RGBAFormat);
-        matFrame.map.flipY = true;
-        matFrame.needsUpdate = true;
-        meshFrame.scale.x = frame.width / frame.height
       }
-      matFrame.map.image.data = new Uint8Array(frame.data);
-      matFrame.map.needsUpdate = true;
-
-      renderer.clear();
       
-     
-     
+
+
+      if (!this.frameTexture) {
+        console.log("!matFrame.map");
+        var data = new Uint8Array(frame.data);
+        this.frameTexture = new THREE.DataTexture(data, frame.width, frame.height, THREE.RGBAFormat);
+        this.frameTexture.flipY = true;
+        matFrame.map = this.frameTexture
+      }
+      this.frameTexture.image.data = new Uint8Array(frame.data);
+      this.frameTexture.needsUpdate = true;
       renderer.render(scene, camera)
-      //camera2.lookAt(scene2.position);
-      //renderer.render(scene2, camera2)
-      
-      
     }
-
-
-
-    
-
-    id = canvas.requestAnimationFrame(this.render.bind(this))
+  //  id = canvas.requestAnimationFrame(this.render.bind(this))
   },
 
   sliceData(rawData) {
